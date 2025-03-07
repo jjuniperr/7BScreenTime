@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7B Screen Time</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --background: #121212;
+            --card-bg: #1e1e1e;
+            --accent: #2d2d2d;
+            --highlight: #bb86fc;
+            --secondary-highlight: #03dac6;
+            --text: #e1e1e1;
+            --text-secondary: #b0b0b0;
+            --border: #333333;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background);
+            color: var(--text);
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            color: var(--highlight);
+        }
+        
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        @media (min-width: 992px) {
+            .dashboard {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .overall-charts {
+                grid-column: span 2;
+            }
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--text);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background-color: var(--accent);
+            color: var(--text);
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:hover {
+            background-color: rgba(45, 45, 45, 0.5);
+        }
+        
+        /* Chart Containers */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .overall-chart-container {
+            height: 400px;
+        }
+        
+        /* Individual pie charts grid */
+        .pie-charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .pie-chart-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .pie-chart-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            text-align: center;
+            color: var(--secondary-highlight);
+        }
+        
+        .small-chart-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+        }
+        
+        /* Legend Styling */
+        ul.legend {
+            list-style-type: none;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+        
+        ul.legend li {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            display: inline-block;
+            margin-right: 5px;
+            border-radius: 3px;
+        }
+        
+        /* Note styling */
+        .note {
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>7B Screen Time</h1>
+        <p class="subtitle">These Guys Need Help 😭</p>
+        <p class="note">Note: Music is shown separately and not included in total screen time.</p>
+    </header>
+    
+    <div class="dashboard">
+        <div class="card overall-charts">
+            <h2 class="card-title">Screen Time by Person (Bar Chart)</h2>
+            <div class="chart-container overall-chart-container">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="card overall-charts">
+            <h2 class="card-title">Screen Time by Person (Pie Chart)</h2>
+            <div class="chart-container overall-chart-container">
+                <canvas id="pieChart"></canvas>
+            </div>
+            <ul class="legend" id="pieLegend">
+                <!-- Legend will be inserted here by JavaScript -->
+            </ul>
+        </div>
+        
+        <div class="card overall-charts">
+            <h2 class="card-title">Individual Pie Charts</h2>
+            <div class="pie-charts-grid" id="individualPieCharts">
+                <!-- Individual pie charts will be inserted here by JavaScript -->
+            </div>
+        </div>
+        
+        <div class="card overall-charts">
+            <h2 class="card-title">Raw Screen Time Data</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Screen Time Total</th>
+                            <th>Television</th>
+                            <th>Video Games</th>
+                            <th>Social Media</th>
+                            <th>Music (not in total)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable">
+                        <!-- Data will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Function to convert time string to hours
+        function timeToHours(timeStr) {
+            if (!timeStr || timeStr === "0" || timeStr === "0hrs") return 0;
+            
+            let totalHours = 0;
+            
+            // Extract hours
+            const hoursMatch = timeStr.match(/(\d+)\s*hr/);
+            if (hoursMatch) {
+                totalHours += parseInt(hoursMatch[1], 10);
+            }
+            
+            // Handle "hour and a half" case
+            if (timeStr.includes("hour and a half")) {
+                totalHours += 1.5;
+                return totalHours;
+            }
+            
+            // Extract minutes
+            const minutesMatch = timeStr.match(/(\d+)\s*minute/);
+            if (minutesMatch) {
+                totalHours += parseInt(minutesMatch[1], 10) / 60;
+            }
+            
+            // Extract seconds
+            const secondsMatch = timeStr.match(/(\d+)\s*second/);
+            if (secondsMatch) {
+                totalHours += parseInt(secondsMatch[1], 10) / 3600;
+            }
+            
+            return totalHours;
+        }
+        
+        // Screen time data from the file
+        const data = [
+            {
+                name: "Alexis",
+                total: "9hrs",
+                television: "1hr",
+                videoGames: "0",
+                socialMedia: "1hrs",
+                music: "8hrs"
+            },
+            {
+                name: "Josie",
+                total: "9hrs",
+                television: "2hrs",
+                videoGames: "2hrs",
+                socialMedia: "5hrs",
+                music: "15 seconds"
+            },
+            {
+                name: "Mallory",
+                total: "17hrs",
+                television: "0hrs",
+                videoGames: "10hrs",
+                socialMedia: "7hr",
+                music: "1hr"
+            },
+            {
+                name: "Daijah",
+                total: "14hrs",
+                television: "2hrs",
+                videoGames: "11hrs",
+                socialMedia: "2hrs",
+                music: "5hrs"
+            },
+            {
+                name: "Meah",
+                total: "8hrs",
+                television: "4hrs",
+                videoGames: "1hrs",
+                socialMedia: "2hrs",
+                music: "1hrs"
+            },
+            {
+                name: "Kylie",
+                total: "8hrs",
+                television: "2hrs",
+                videoGames: "7hrs",
+                socialMedia: "8hrs",
+                music: "30 minutes"
+            },
+            {
+                name: "Camden",
+                total: "1hrs",
+                television: "0hrs",
+                videoGames: "0hrs",
+                socialMedia: "1hrs",
+                music: "3hrs"
+            },
+            {
+                name: "Ellie",
+                total: "2hrs",
+                television: "1hour and a half",
+                videoGames: "10 minutes",
+                socialMedia: "0hrs",
+                music: "20 minutes"
+            },
+            {
+                name: "Mrs. Pritchet",
+                total: "5hrs",
+                television: "5hrs",
+                videoGames: "0",
+                socialMedia: "0",
+                music: "7hrs"
+            },
+            {
+                name: "June",
+                total: "6hrs",
+                television: "1hr",
+                videoGames: "4hr",
+                socialMedia: "1hr",
+                music: "30 minutes"
+            },
+            {
+                name: "Delaney",
+                total: "10hrs",
+                television: "3hrs",
+                videoGames: "3hrs",
+                socialMedia: "4hrs",
+                music: "3hrs"
+            },
+            {
+                name: "Char",
+                total: "4hrs",
+                television: "3hrs",
+                videoGames: "0hrs",
+                socialMedia: "1hrs",
+                music: "5hrs"
+            },
+            {
+                name: "Lillie",
+                total: "5hrs 49 minutes",
+                television: "3hrs",
+                videoGames: "10 minutes",
+                socialMedia: "5hrs",
+                music: "3hrs"
+            },
+            {
+                name: "Isabella",
+                total: "8hrs",
+                television: "5hrs",
+                videoGames: "1hrs",
+                socialMedia: "2hrs",
+                music: "15 minutes"
+            }
+        ];
+        
+        // Process data - convert strings to hours, EXCLUDING music from total
+        data.forEach(person => {
+            person.tvHours = timeToHours(person.television);
+            person.gameHours = timeToHours(person.videoGames);
+            person.socialHours = timeToHours(person.socialMedia);
+            person.musicHours = timeToHours(person.music);
+            
+            // Calculate screen time total (excluding music)
+            person.calculatedTotal = person.tvHours + person.gameHours + person.socialHours;
+        });
+
+        // Sort by calculated total screen time (excluding music)
+        data.sort((a, b) => b.calculatedTotal - a.calculatedTotal);
+
+        // Populate the table
+        const tableBody = document.getElementById('dataTable');
+        data.forEach(person => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${person.name}</td>
+                <td>${person.calculatedTotal.toFixed(1)} hrs</td>
+                <td>${person.television}</td>
+                <td>${person.videoGames}</td>
+                <td>${person.socialMedia}</td>
+                <td>${person.music}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+        
+        // Define colors for activities
+        const activityColors = {
+            television: '#bb86fc', // Purple (primary)
+            videoGames: '#03dac6', // Teal (secondary)
+            socialMedia: '#cf6679', // Pink (error)
+            music: '#b0b0b0'  // Light gray
+        };
+        
+        // Bar Chart - Screen Time by Person
+        const barCtx = document.getElementById('barChart').getContext('2d');
+        const barChart = new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: data.map(item => item.name),
+                datasets: [
+                    {
+                        label: 'Television',
+                        data: data.map(item => item.tvHours),
+                        backgroundColor: activityColors.television,
+                        stack: 'Stack 0'
+                    },
+                    {
+                        label: 'Video Games',
+                        data: data.map(item => item.gameHours),
+                        backgroundColor: activityColors.videoGames,
+                        stack: 'Stack 0'
+                    },
+                    {
+                        label: 'Social Media',
+                        data: data.map(item => item.socialHours),
+                        backgroundColor: activityColors.socialMedia,
+                        stack: 'Stack 0'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#e1e1e1'
+                        }
+                    },
+                    title: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                return `${context.dataset.label}: ${value.toFixed(1)} hours`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#e1e1e1'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#e1e1e1'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Hours',
+                            color: '#e1e1e1'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Calculate total hours for each activity for the pie chart
+        const totalTelevision = data.reduce((sum, person) => sum + person.tvHours, 0);
+        const totalVideoGames = data.reduce((sum, person) => sum + person.gameHours, 0);
+        const totalSocialMedia = data.reduce((sum, person) => sum + person.socialHours, 0);
+        
+        // Pie Chart - Overall Activity Distribution (excluding music)
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        const pieLabels = ['Television', 'Video Games', 'Social Media'];
+        const pieData = [totalTelevision, totalVideoGames, totalSocialMedia];
+        const pieColors = [
+            activityColors.television,
+            activityColors.videoGames,
+            activityColors.socialMedia
+        ];
+        
+        const pieChart = new Chart(pieCtx, {
+            type: 'pie',
+            data: {
+                labels: pieLabels,
+                datasets: [{
+                    data: pieData,
+                    backgroundColor: pieColors,
+                    borderColor: '#121212',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${context.label}: ${value.toFixed(1)} hours (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Create custom legend for pie chart
+        const pieLegend = document.getElementById('pieLegend');
+        pieLabels.forEach((label, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="legend-color" style="background-color: ${pieColors[index]}"></span>
+                <span>${label}</span>
+            `;
+            pieLegend.appendChild(li);
+        });
+        
+        // Create individual pie charts for each person
+        const individualPieChartsContainer = document.getElementById('individualPieCharts');
+        
+        data.forEach(person => {
+            // Create container for this person's pie chart
+            const pieChartCard = document.createElement('div');
+            pieChartCard.className = 'pie-chart-card';
+            
+            // Create title
+            const pieChartTitle = document.createElement('h3');
+            pieChartTitle.className = 'pie-chart-title';
+            pieChartTitle.textContent = `${person.name} (${person.calculatedTotal.toFixed(1)} hrs)`;
+            pieChartCard.appendChild(pieChartTitle);
+            
+            // Create canvas for chart
+            const canvas = document.createElement('canvas');
+            const canvasId = `pieChart_${person.name.replace(/\s+/g, '_')}`;
+            canvas.id = canvasId;
+            
+            // Create chart container
+            const chartContainer = document.createElement('div');
+            chartContainer.className = 'small-chart-container';
+            chartContainer.appendChild(canvas);
+            pieChartCard.appendChild(chartContainer);
+            
+            // Add to the main container
+            individualPieChartsContainer.appendChild(pieChartCard);
+            
+            // Individual data (excluding music)
+            const individualData = [
+                person.tvHours,
+                person.gameHours, 
+                person.socialHours
+            ];
+            
+            // Create chart
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: pieLabels,
+                    datasets: [{
+                        data: individualData,
+                        backgroundColor: pieColors,
+                        borderColor: '#121212',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    if (value === 0) return `${context.label}: 0 hours (0%)`;
+                                    
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${context.label}: ${value.toFixed(1)} hours (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
